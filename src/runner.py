@@ -10,7 +10,7 @@ from typing import Any, Callable
 import torch
 
 from . import devices
-from .config import load_config, resolve_path
+from .config import load_config, mark_latest, resolve_path, run_dir
 from .environment import collect_metadata
 from .reporting import ResultWriter
 
@@ -89,7 +89,7 @@ def build_parser(description: str) -> argparse.ArgumentParser:
     p.add_argument("--backend", default="auto", help="auto | cpu | mps | cuda | comma list (default: auto)")
     p.add_argument("--config", default=None, help="YAML config merged over configs/default.yaml")
     p.add_argument("--set", dest="overrides", action="append", default=[], metavar="KEY=VALUE", help="override a config value, e.g. matmul.iterations=5")
-    p.add_argument("--results-dir", default=None, help="output root (default: config results_dir)")
+    p.add_argument("--results-dir", default=None, help="results root; files go to <root>/<run-id>/raw (default: config results_dir)")
     p.add_argument("--run-id", default=None, help="identifier shared by all files of one suite run")
     return p
 
@@ -106,11 +106,14 @@ def experiment_main(experiment: str, run_fn: Callable[[RunContext], None], secti
     run_id = args.run_id or dt.datetime.now().strftime("%Y%m%dT%H%M%S")
     seed = int(cfg["seed"])
     exp_cfg = cfg.get(section or experiment, {})
+    out_dir = run_dir(results_dir, run_id)
+    (out_dir / "raw").mkdir(parents=True, exist_ok=True)
+    mark_latest(results_dir, run_id)
     fatal = 0
 
     for status in devices.resolve_backends(args.backend):
         meta = collect_metadata(status, cfg, seed, run_id, experiment)
-        writer = ResultWriter(results_dir / "raw", experiment, status, meta)
+        writer = ResultWriter(out_dir / "raw", experiment, status, meta)
         print(f"== {experiment} on {status.backend} ({status.device_name}) ==", flush=True)
         try:
             if not status.available:
@@ -119,7 +122,7 @@ def experiment_main(experiment: str, run_fn: Callable[[RunContext], None], secti
                 continue
             devices.seed_everything(seed)
             devices.configure_numerics(bool(cfg.get("numerics", {}).get("allow_tf32", False)))
-            ctx = RunContext(experiment, cfg, exp_cfg, status, writer, seed, results_dir)
+            ctx = RunContext(experiment, cfg, exp_cfg, status, writer, seed, out_dir)
             run_fn(ctx)
         except BaseException as exc:  # a fatal harness error is recorded, never hidden, and never stops other backends
             if isinstance(exc, KeyboardInterrupt):

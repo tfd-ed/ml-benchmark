@@ -1,0 +1,49 @@
+{
+  "run_id": "20260919T163805",
+  "backend_arg": "cuda",
+  "overrides": [],
+  "runs": [
+    {
+      "experiment": "matmul",
+      "backend": "cuda",
+      "returncode": 0,
+      "seconds": 6.8
+    },
+    {
+      "experiment": "cnn",
+      "backend": "cuda",
+      "returncode": 0,
+      "seconds": 49.0
+    },
+    {
+      "experiment": "transformer",
+      "backend": "cuda",
+      "returncode": 0,
+      "seconds": 12.8
+    },
+    {
+      "experiment": "memory",
+      "backend": "cuda",
+      "returncode": 0,
+      "seconds": 72.0
+    },
+    {
+      "experiment": "precision",
+      "backend": "cuda",
+      "returncode": 0,
+      "seconds": 6.1
+    },
+    {
+      "experiment": "rl",
+      "backend": "cuda",
+      "returncode": 0,
+      "seconds": 12.8
+    },
+    {
+      "experiment": "sustained",
+      "backend": "cuda",
+      "returncode": 0,
+      "seconds": 603.6
+    }
+  ]
+}

@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src import devices  # noqa: E402
-from src.config import load_config, resolve_path  # noqa: E402
+from src.config import load_config, mark_latest, resolve_path, run_dir  # noqa: E402
 from src.environment import collect_metadata  # noqa: E402
 from src.reporting import ResultWriter  # noqa: E402
 
@@ -49,6 +49,9 @@ def main() -> int:
     run_id = args.run_id or dt.datetime.now().strftime("%Y%m%dT%H%M%S")
     cfg = load_config(args.config, args.overrides)
     results_dir = resolve_path(args.results_dir or cfg.get("results_dir", "results"))
+    out_dir = run_dir(results_dir, run_id)
+    (out_dir / "raw").mkdir(parents=True, exist_ok=True)
+    mark_latest(results_dir, run_id)
     backends = devices.resolve_backends(args.backend)
     print(f"run_id {run_id}: experiments {names} on backends {[b.backend for b in backends]}", flush=True)
 
@@ -67,17 +70,17 @@ def main() -> int:
             manifest.append({"experiment": name, "backend": st.backend, "returncode": rc, "seconds": round(time.time() - t0, 1)})
             if rc < 0 or rc > 1:  # killed by a signal / interpreter crash: the experiment could not record it itself
                 meta = collect_metadata(st, cfg, int(cfg["seed"]), run_id, name)
-                with ResultWriter(results_dir / "raw", name, st, {**meta, "run_id": run_id + "_crash"}) as w:
+                with ResultWriter(out_dir / "raw", name, st, {**meta, "run_id": run_id + "_crash"}) as w:
                     w.write(status="error", phase="config", error_type="SubprocessCrash", error=f"experiment process exited with code {rc}")
                 worst = 1
-    out = results_dir / "raw" / f"run_all__{run_id}.json"
+    out = out_dir / "raw" / "run_all.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"run_id": run_id, "backend_arg": args.backend, "overrides": args.overrides, "runs": manifest}, indent=2))
     print(f"manifest -> {out}")
     for m in manifest:
         print(f"  {m['experiment']:12s} {m['backend']:5s} rc={m['returncode']} {m['seconds']}s")
     if args.report:
-        subprocess.run([sys.executable, str(ROOT / "scripts" / "generate_report.py")] + (["--results-dir", args.results_dir] if args.results_dir else []))
+        subprocess.run([sys.executable, str(ROOT / "scripts" / "generate_report.py"), "--run-id", run_dir(results_dir, run_id).name] + (["--results-dir", args.results_dir] if args.results_dir else []))
     return worst
 
 

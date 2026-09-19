@@ -91,29 +91,30 @@ def build_gpt_workload(model_cfg: dict, batch_size: int, seq_len: int, device: t
     return GPTWorkload(model, opt, data, batch_size, seq_len, device, precision, scaler, n_params, note)
 
 
-# --------------------------------------------------------------------------- CIFAR-10 (CNN)
+# --------------------------------------------------------------------------- Fashion-MNIST (CNN)
 
-CIFAR_MEAN = torch.tensor([0.4914, 0.4822, 0.4465]).view(1, 3, 1, 1)
-CIFAR_STD = torch.tensor([0.2470, 0.2435, 0.2616]).view(1, 3, 1, 1)
+FMNIST_MEAN = 0.2860
+FMNIST_STD = 0.3530
 
 
-def load_cifar10(data_dir: Path, train_samples: int | None, val_samples: int | None, seed: int):
-    """Returns normalised float tensors (train_x, train_y, val_x, val_y) on the CPU.
-    The subsets are a seeded random selection, identical for every backend."""
-    from torchvision.datasets import CIFAR10
+def load_fashion_mnist(data_dir: Path, train_samples: int | None, val_samples: int | None, seed: int):
+    """Returns normalised float tensors (train_x, train_y, val_x, val_y) on the CPU, shaped N,3,32,32.
+    The 28x28 grayscale images are zero-padded to 32x32 and replicated over 3 channels so the CIFAR-style
+    ResNet (and its FLOPs) is unchanged. The subsets are a seeded random selection, identical for every backend."""
+    from torchvision.datasets import FashionMNIST
 
     def prep(ds, n):
-        x = torch.from_numpy(np.asarray(ds.data)).permute(0, 3, 1, 2).contiguous()  # uint8 N,3,32,32
-        y = torch.tensor(ds.targets, dtype=torch.long)
+        x, y = ds.data, ds.targets.long()  # uint8 N,28,28
         if n is not None and n < len(y):
             idx = torch.randperm(len(y), generator=torch.Generator().manual_seed(seed))[:n]
             x, y = x[idx], y[idx]
-        return ((x.float() / 255.0) - CIFAR_MEAN) / CIFAR_STD, y
+        x = F.pad(x, (2, 2, 2, 2)).unsqueeze(1).expand(-1, 3, -1, -1)
+        return ((x.float() / 255.0) - FMNIST_MEAN) / FMNIST_STD, y
 
-    train = CIFAR10(root=str(data_dir), train=True, download=True)
-    test = CIFAR10(root=str(data_dir), train=False, download=True)
+    train = FashionMNIST(root=str(data_dir), train=True, download=True)
+    test = FashionMNIST(root=str(data_dir), train=False, download=True)
     (tx, ty), (vx, vy) = prep(train, train_samples), prep(test, val_samples)
-    return tx, ty, vx, vy
+    return tx.contiguous(), ty, vx.contiguous(), vy
 
 
 def augment_epoch(x: torch.Tensor, y: torch.Tensor, seed: int, crop_padding: int, flip: bool):

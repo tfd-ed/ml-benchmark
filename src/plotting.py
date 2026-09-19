@@ -187,7 +187,7 @@ def _cnn_bars(df: pd.DataFrame, out_dir: Path, name: str, title: str, value: str
     ax.set_xlabel("Batch size")
     ax.set_ylabel(ylabel)
     n_tr = int(xcol(d, "train_samples").dropna().iloc[0]) if xcol(d, "train_samples").notna().any() else "?"
-    cap = (f"ResNet-18 (CIFAR variant), CIFAR-10 subset of {n_tr} training images, identical seed/initial weights/augmentation/optimizer on every backend. "
+    cap = (f"ResNet-18 (CIFAR variant), Fashion-MNIST subset of {n_tr} training images, identical seed/initial weights/augmentation/optimizer on every backend. "
            f"Bar = median over epochs, dots = individual epochs. {note}{avail_note(df)}")
     return finish(fig, name, title, cap, out_dir)
 
@@ -424,13 +424,13 @@ def plot_ppo_breakdown(df: pd.DataFrame, out_dir: Path) -> list[Path]:
             ax.barh(i, v, left=left, color=shade, hatch=hatch, edgecolor=backend_color(b), linewidth=0.8, label=lab if i == 0 else None)
             left += v
         ax.annotate(f" {left:.3f} s", (left, i), va="center", fontsize=8)
-    ax.set_yticks(range(len(rows)), [f"{b}, hidden {h}" for b, h in rows])
+    ax.set_yticks(range(len(rows)), [f"{backend_label(d, b)}, hidden {h}" for b, h in rows])
     for tick, (b, _) in zip(ax.get_yticklabels(), rows):
         tick.set_color(backend_color(b))
     ax.invert_yaxis()
     ax.set_xlim(left=0, right=ax.get_xlim()[1] * 1.12)
     ax.set_xlabel("Mean wall time per PPO iteration (s); iteration = 8 envs × 128 steps + 16 gradient steps")
-    ax.legend(loc="lower right", fontsize=8)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=len(comps), fontsize=8, frameon=False)
     cap = "Mean over measured iterations; segment style = phase, bar-edge colour = backend. Every phase is synchronised." + avail_note(df)
     return finish(fig, name, title, cap, out_dir)
 

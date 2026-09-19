@@ -47,3 +47,45 @@ def load_config(path: str | Path | None = None, overrides: list[str] | None = No
 def resolve_path(p: str | Path) -> Path:
     p = Path(p)
     return p if p.is_absolute() else PROJECT_ROOT / p
+
+
+# --------------------------------------------------------------------------- per-run result folders
+
+LATEST = "latest"
+
+
+def base_run_id(run_id: str) -> str:
+    """The '<run_id>_crash' marker written by run_all belongs to the same run as its partial data."""
+    return run_id[: -len("_crash")] if run_id.endswith("_crash") else run_id
+
+
+def run_dir(results_dir: str | Path, run_id: str) -> Path:
+    """results/<run_id>/ holds raw/, processed/, plots/ and report.md of one suite run."""
+    return Path(results_dir) / base_run_id(run_id)
+
+
+def mark_latest(results_dir: str | Path, run_id: str) -> None:
+    """Point the relative symlink results/latest at this run (atomically replaced; best effort)."""
+    root = Path(results_dir)
+    tmp = root / f".{LATEST}.tmp"
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        tmp.unlink(missing_ok=True)
+        tmp.symlink_to(base_run_id(run_id))
+        tmp.replace(root / LATEST)
+    except OSError:
+        pass  # e.g. a filesystem without symlinks; --run-id still works
+
+
+def resolve_run_dir(results_dir: str | Path, run_id: str | None = None) -> Path:
+    """The folder of `run_id`, or of the run `latest` points at (falling back to the newest run folder)."""
+    root = Path(results_dir)
+    if run_id:
+        return root / run_id
+    link = root / LATEST
+    if link.exists():
+        return link.resolve()
+    runs = sorted(p for p in root.iterdir() if p.is_dir() and (p / "raw").is_dir()) if root.is_dir() else []
+    if not runs:
+        raise FileNotFoundError(f"no run folders under {root}")
+    return runs[-1]

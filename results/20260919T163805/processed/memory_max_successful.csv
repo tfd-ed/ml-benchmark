@@ -1,0 +1,4 @@
+backend,ladder,largest_ok_value,largest_ok_model,largest_ok_batch,largest_ok_seq,largest_ok_params_M,memory_mb_at_largest_ok,memory_kind,ladder_ended_by,ended_by_safety_cap
+cuda,batch_size,256.0,small,256.0,256.0,4.273664,8394.1669921875,cuda_max_memory_allocated (exact peak of tensor allocations),oom (OutOfMemoryError) at small bs=512 seq=256,False
+cuda,model,205998080.0,xl,8.0,256.0,205.99808,4568.26123046875,cuda_max_memory_allocated (exact peak of tensor allocations),ladder ceiling reached (no failure),False
+cuda,sequence_length,4096.0,small,8.0,4096.0,5.256704,4240.94482421875,cuda_max_memory_allocated (exact peak of tensor allocations),ladder ceiling reached (no failure),False

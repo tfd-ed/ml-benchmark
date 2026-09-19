@@ -1,6 +1,6 @@
 """Normalised result schema, incremental writer, loader and validator.
 
-Layout on disk (results/raw/):
+Layout on disk (results/<run_id>/raw/, one folder per suite run; results/latest -> newest run):
     <experiment>__<backend>__<run_id>.csv        one row per measurement (streamed, flushed per row)
     <experiment>__<backend>__<run_id>.meta.json  full run metadata + configuration
 

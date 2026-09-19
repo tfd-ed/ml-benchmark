@@ -22,9 +22,9 @@ matmul:
 
 cnn:
   model: resnet18_cifar
-  dataset: cifar10
+  dataset: fashion_mnist
   data_dir: data
-  train_samples: 4096        # fixed seeded subset (CPU is ~15x slower than MPS here); null = full 50k set
+  train_samples: 4096        # fixed seeded subset (CPU is ~15x slower than MPS here); null = full 60k set
   val_samples: 1000          # fixed seeded subset of the 10k test set; null = all
   batch_sizes: [16, 32, 64, 128]
   epochs: 3
@@ -88,7 +88,7 @@ rl:
   vf_coef: 0.5
 
 sustained:
-  duration_minutes: 30
+  duration_minutes: 10
   log_interval_s: 10
   batch_size: 16
   sequence_length: 256

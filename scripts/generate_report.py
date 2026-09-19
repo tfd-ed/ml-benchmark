@@ -1,8 +1,10 @@
 """Load raw results -> validate -> aggregate -> plots -> Markdown report.
 
-    python scripts/generate_report.py [--results-dir results] [--all-runs]
+    python scripts/generate_report.py [--results-dir results] [--run-id RUN_ID] [--all-runs]
 
-By default only the most recent run of every (experiment, backend) is reported.
+Reads results/<run_id>/raw/ and writes processed/, plots/ and report.md into the same run folder.
+Without --run-id the run that results/latest points at is used. Inside that folder only the most
+recent run of every (experiment, backend) is reported unless --all-runs is given.
 The report states measurements only; it never ranks backends or declares a winner.
 """
 import argparse
@@ -14,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pandas as pd  # noqa: E402
 
 from src import plotting  # noqa: E402
-from src.config import resolve_path  # noqa: E402
+from src.config import resolve_path, resolve_run_dir  # noqa: E402
 from src.reporting import add_speedup, aggregate_stats, latest_runs, load_results, md_table, validate  # noqa: E402
 
 FAIL_STATUSES = ("oom", "unsupported", "unavailable", "error", "timeout", "skipped")
@@ -104,7 +106,7 @@ def cfg_str(*vals) -> str:
 
 
 def section_cnn(df: pd.DataFrame, rep: Report) -> None:
-    rep.add("## Experiment 2: CNN training (ResNet-18 / CIFAR-10)\n")
+    rep.add("## Experiment 2: CNN training (ResNet-18 / Fashion-MNIST)\n")
     d = df[df["experiment"] == "cnn"]
     ok = d[(d["status"] == "ok") & (d["phase"] == "measure") & (d["x_granularity"] == "epoch")].copy() if "x_granularity" in d else d.iloc[0:0]
     if ok.empty:
@@ -353,10 +355,17 @@ def md_mps_limitations(df: pd.DataFrame) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--results-dir", default="results")
-    ap.add_argument("--all-runs", action="store_true", help="use every run instead of only the latest per (experiment, backend)")
+    ap.add_argument("--results-dir", default="results", help="root holding one folder per run (default: results)")
+    ap.add_argument("--run-id", default=None, help="run folder to report on (default: results/latest)")
+    ap.add_argument("--all-runs", action="store_true", help="within the run folder, use every run instead of only the latest per (experiment, backend)")
     args = ap.parse_args()
-    results_dir = resolve_path(args.results_dir)
+    root = resolve_path(args.results_dir)
+    try:
+        results_dir = resolve_run_dir(root, args.run_id)
+    except FileNotFoundError as exc:
+        print(exc)
+        return 1
+    print(f"run folder: {results_dir}")
 
     df, metas = load_results(results_dir / "raw")
     if df.empty:
@@ -370,7 +379,7 @@ def main() -> int:
 
     rep = Report(results_dir)
     rep.add("# ML hardware benchmark report\n")
-    rep.add("_All numbers below come from the raw measurements in `results/raw/`. This report lists observations only; interpretation is left to the reader._\n")
+    rep.add("_All numbers below come from the raw measurements in this run's `raw/` folder. This report lists observations only; interpretation is left to the reader._\n")
     rep.add("## Hardware\n")
     rep.add(md_hardware(metas, df))
     rep.add("## Environment\n")

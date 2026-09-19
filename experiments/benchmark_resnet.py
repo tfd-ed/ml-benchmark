@@ -1,4 +1,5 @@
-"""Experiment 2: ResNet-18 (CIFAR variant) training on CIFAR-10.
+"""Experiment 2: ResNet-18 (CIFAR variant) training on Fashion-MNIST
+(28x28 grayscale padded to 32x32 and replicated to 3 channels, so the CIFAR-style network is unchanged).
 
 Identical across backends: model + initial weights, data subset, per-epoch shuffling and
 augmentation (done on the CPU with a seeded generator before the timer starts), optimizer,
@@ -25,7 +26,7 @@ from src.metrics import MemoryTracker, summarize  # noqa: E402
 from src.models import count_params, resnet18_cifar  # noqa: E402
 from src.runner import RunContext, check_finite, experiment_main  # noqa: E402
 from src.timing import DeviceTimer  # noqa: E402
-from src.workloads import augment_epoch, load_cifar10  # noqa: E402
+from src.workloads import augment_epoch, load_fashion_mnist  # noqa: E402
 
 EXPERIMENT = "cnn"
 
@@ -63,7 +64,7 @@ def run_batch_size(ctx: RunContext, data, bs: int) -> None:
     n_params = count_params(model)
     assert_on_device(dev, model)
     model.train()
-    common = dict(model="resnet18_cifar", dataset="cifar10", batch_size=bs, precision="fp32", n_params=n_params,
+    common = dict(model="resnet18_cifar", dataset="fashion_mnist", batch_size=bs, precision="fp32", n_params=n_params,
                   train_samples=int(tx.shape[0]), lr=cfg["lr"], optimizer=cfg["optimizer"])
 
     # -- warmup on a throw-away copy of the initial state
@@ -112,18 +113,18 @@ def run_batch_size(ctx: RunContext, data, bs: int) -> None:
 
 def run(ctx: RunContext) -> None:
     cfg = ctx.exp_cfg
-    data = load_cifar10(resolve_path(cfg["data_dir"]), cfg.get("train_samples"), cfg.get("val_samples"), ctx.seed)
+    data = load_fashion_mnist(resolve_path(cfg["data_dir"]), cfg.get("train_samples"), cfg.get("val_samples"), ctx.seed)
     print(f"    data: train {tuple(data[0].shape)} val {tuple(data[2].shape)}", flush=True)
     for bs in cfg["batch_sizes"]:
         try:
             run_batch_size(ctx, data, bs)
         except Exception as exc:
-            ctx.record_failure(exc, model="resnet18_cifar", dataset="cifar10", batch_size=bs, precision="fp32")
+            ctx.record_failure(exc, model="resnet18_cifar", dataset="fashion_mnist", batch_size=bs, precision="fp32")
         ctx.cleanup()
 
 
 def main(argv=None) -> int:
-    return experiment_main(EXPERIMENT, run, description="ResNet-18 / CIFAR-10 training benchmark", argv=argv)
+    return experiment_main(EXPERIMENT, run, description="ResNet-18 / Fashion-MNIST training benchmark", argv=argv)
 
 
 if __name__ == "__main__":

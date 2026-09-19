@@ -150,7 +150,8 @@ def test_matmul_end_to_end_on_cpu(tmp_path):
     rc = main(["--backend", "cpu,cuda" if not torch.cuda.is_available() else "cpu", "--results-dir", str(tmp_path), "--run-id", "t",
                "--set", "matmul.sizes=[32]", "--set", "matmul.iterations=3", "--set", "matmul.warmup=1", "--set", "matmul.overrides_by_size={}"])
     assert rc == 0
-    df, _ = load_results(tmp_path / "raw")
+    assert (tmp_path / "t" / "raw").is_dir() and (tmp_path / "latest").resolve() == (tmp_path / "t").resolve()  # per-run folder + latest link
+    df, _ = load_results(tmp_path / "t" / "raw")
     cpu = df[(df["backend"] == "cpu") & (df["status"] == "ok")]
     assert len(cpu) == 4 and set(cpu["phase"]) == {"warmup", "measure"}  # every measurement, warmup included
     assert (cpu["throughput_unit"] == "GFLOPS").all()
@@ -170,3 +171,13 @@ def test_time_budget_reduces_slow_configurations_and_flags_it():
     assert not fast.reduced_for_budget and len(fast.warmup_ms) == 5 and len(fast.samples_ms) == 50
     unbudgeted = time_fn(lambda: time.sleep(0.01), "cpu", warmup=2, iterations=4)
     assert not unbudgeted.reduced_for_budget and len(unbudgeted.samples_ms) == 4
+
+
+def test_compare_runs_labels_and_speedup():
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from compare_runs import short_device, speedup_table
+
+    assert short_device("Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz") == "Intel Core i7-8700K @ 3.70GHz"
+    w = pd.DataFrame({"batch_size": [16, 32], "cpu · x": [100.0, 200.0], "cuda · y": [1000.0, 500.0]})
+    sp = speedup_table(w, ["batch_size"], "cpu · x")
+    assert list(sp.columns) == ["batch_size", "cuda · y"] and list(sp["cuda · y"]) == [10.0, 2.5]  # baseline column omitted
