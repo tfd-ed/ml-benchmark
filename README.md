@@ -256,22 +256,19 @@ It loads `results/<run_id>/raw/`, validates the data, writes aggregate tables, d
 
 ## Metric definitions: what, how it is calculated, why it matters
 
-Formulas are rendered as LaTeX (GitHub renders `$…$` inline and `$$…$$` as display math). Notation used below: $t$ is the wall time of one timed call in
+Notation used below: $t$ is the wall time of one timed call in
 **seconds** (the raw data stores milliseconds, $t_\text{ms} = 1000 \cdot t$), $B$ the batch size, $L$ the sequence length and $n$ the matrix size.
 Every number in the reports is computed from the per-measurement rows in `results/<run_id>/raw/`, never from a running total kept by the experiment.
 
-Click a metric to expand it.
-
-<details>
-<summary><b>Timing and latency</b></summary>
+### Timing and latency
 
 **What.** *Latency* (`latency_ms`) is the wall time of one call or training step.
 
 **How.** Every measurement is synchronised on both sides, so queued asynchronous GPU work is fully counted and cannot leak into the next iteration:
 
-$$
+```math
 t = t_1 - t_0, \qquad \text{sync} \rightarrow t_0 \rightarrow \text{work} \rightarrow \text{sync} \rightarrow t_1
-$$
+```
 
 using `torch.cuda.synchronize()`, `torch.mps.synchronize()` (nothing on CPU) and `time.perf_counter()` on every backend. Warm-up iterations are recorded
 (`phase = warmup`) but excluded from all statistics.
@@ -280,19 +277,16 @@ using `torch.cuda.synchronize()`, `torch.mps.synchronize()` (nothing on CPU) and
 *queued*, which would flatter every GPU by a large and arbitrary factor. Excluding warm-up removes one-time costs (kernel compilation, clock ramp-up) that would
 otherwise distort short benchmarks. Lower latency is better.
 
-</details>
-
-<details>
-<summary><b>Summary statistics: median, mean, standard deviation, CV, min, max</b></summary>
+### Summary statistics: median, mean, standard deviation, CV, min, max
 
 **What.** Each configuration is measured $n$ times (matmul: 10–100 calls, CNN: one value per epoch, PPO: one per iteration). The distribution of those
 values is summarised, and the **median** is the headline number.
 
 **How.** With measurements $x_1,\dots,x_n$:
 
-$$
+```math
 \bar{x} = \frac{1}{n}\sum_{i=1}^{n} x_i, \qquad s = \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}\left(x_i-\bar{x}\right)^2}, \qquad \mathrm{CV} = \frac{s}{\bar{x}}
-$$
+```
 
 $\tilde{x}$ (the median) is the middle value of the sorted measurements; $s$ is the *sample* standard deviation and is undefined (`null`) for $n < 2$.
 
@@ -300,18 +294,15 @@ $\tilde{x}$ (the median) is the middle value of the sorted measurements; $s$ is 
 upward. The CV is a unit-free noise indicator: $\mathrm{CV}\approx 0.01$ means repeats agree within about 1%, while a large CV (e.g. 0.13 for the transformer at
 batch 32 × sequence 128) flags a configuration whose number should not be over-interpreted. Report and read the CV alongside every median.
 
-</details>
-
-<details>
-<summary><b>Throughput</b></summary>
+### Throughput
 
 **What.** Work done per second, in a unit that depends on the experiment (`throughput_unit`). Higher is better.
 
 **How.** In general
 
-$$
+```math
 \theta = \frac{W}{t}
-$$
+```
 
 where $W$ is the amount of work in one measured call. The concrete $W$ and unit for each experiment are given below. Because $\theta = W/t$ is a decreasing
 function of $t$, the median throughput equals the work divided by the median latency.
@@ -319,18 +310,15 @@ function of $t$, the median throughput equals the work divided by the median lat
 **Why it matters.** Throughput lets you compare configurations that do different amounts of work per call (different batch sizes, matrix sizes) on one axis, and
 it is the quantity that the speedup below is built from. Only compare throughputs that share the same unit *and* configuration.
 
-</details>
-
-<details>
-<summary><b>Matrix multiplication: FLOPs and GFLOPS</b></summary>
+### Matrix multiplication: FLOPs and GFLOPS
 
 **What.** The *achieved* floating-point rate for $C = AB$ with $A, B \in \mathbb{R}^{n\times n}$ (`matmul`, `matmuls_per_sec`).
 
 **How.** Each of the $n^2$ output entries is a dot product of length $n$, costing $n$ multiplications and $n-1$ additions, so
 
-$$
+```math
 \text{FLOPs}(n) \approx 2n^3, \qquad \text{GFLOPS} = \frac{2n^3}{t \cdot 10^{9}}, \qquad \text{matmuls/s} = \frac{1}{t}
-$$
+```
 
 *Example:* $n = 4096$ in $t = 18.074\ \text{ms}$ gives $\dfrac{2\cdot 4096^3}{0.018074\cdot 10^{9}} \approx 7{,}604$ GFLOPS (the `cuda · NVIDIA GeForce RTX 3060` row).
 
@@ -338,43 +326,37 @@ $$
 from data-pipeline and framework overhead. It is the *achieved* rate for that size and dtype, **not** the hardware's theoretical peak: small matrices
 cannot fill a large GPU, which is why GFLOPS grows with $n$. The pure-dtype matmul in the `precision` experiment uses the same formula for FP32, FP16 and BF16.
 
-</details>
-
-<details>
-<summary><b>CNN training: epoch time, images/s, loss and accuracy</b></summary>
+### CNN training: epoch time, images/s, loss and accuracy
 
 **What.** ResNet-18 trained on a seeded Fashion-MNIST subset (default 4,096 images, 3 epochs).
 
 **How.** With $S$ steps per epoch and per-step synchronised times $t_1,\dots,t_S$:
 
-$$
+```math
 T_\text{epoch} = \sum_{s=1}^{S} t_s, \qquad \theta_\text{img} = \frac{S \cdot B}{T_\text{epoch}}\ \ [\text{images/s}]
-$$
+```
 
 *Example:* batch 128 on the M1 Pro has $S \cdot B = 4096$ images and $T_\text{epoch} = 5.488$ s, so $\theta_\text{img} = 4096/5.488 \approx 746$ images/s.
 Each step includes the host→device copy of the batch, forward, backward, optimiser update and `loss.item()`. Data augmentation and validation are timed
 separately and are *not* part of $T_\text{epoch}$. The reported **training loss** is the mean cross-entropy over the epoch's steps, and **validation accuracy** is
 
-$$
+```math
 \text{acc} = \frac{N_\text{correct}}{N_\text{val}}, \qquad N_\text{val} = 1000
-$$
+```
 
 **Why it matters.** Images/s (and its inverse, epoch time) is what determines how long a real training run takes. Batch size changes it because larger batches keep
 the device busier. Loss and accuracy are only a sanity check that the run actually trained and the numerics are sane, not a model-quality result (3 epochs on a
 1,000-image validation subset).
 
-</details>
-
-<details>
-<summary><b>Transformer training: tokens/s</b></summary>
+### Transformer training: tokens/s
 
 **What.** A 4.2M-parameter GPT-style model, one full training step per measurement (copy of tokens, forward, cross-entropy, backward, AdamW).
 
 **How.**
 
-$$
+```math
 \theta_\text{tok} = \frac{B \cdot L}{t_\text{step}}\ \ [\text{tokens/s}]
-$$
+```
 
 The `precision` experiment's `training_autocast` workload and the `sustained` experiment use the same definition. Loss is next-token cross-entropy; the synthetic data
 has a known entropy floor $\ln(\text{branching})$ that the loss cannot go below, which makes divergence or a broken run visible.
@@ -382,40 +364,34 @@ has a known entropy floor $\ln(\text{branching})$ that the loss cannot go below,
 **Why it matters.** Tokens/s is the transformer analogue of images/s and is the figure that translates directly into "how long does this training run take".
 It depends on both $B$ and $L$ (longer sequences cost more per token because attention scales with $L^2$), so it is reported over a batch × sequence grid.
 
-</details>
-
-<details>
-<summary><b>Precision: FP32, FP16, BF16</b></summary>
+### Precision: FP32, FP16, BF16
 
 **What.** The same two throughput metrics (GFLOPS for a pure-dtype matmul, tokens/s for autocast training) measured per numeric format.
 
 **How.** Formulas as above; FP32 is *strict* FP32 (TF32 disabled), so the half-precision gain is measured against a true FP32 baseline:
 
-$$
+```math
 \text{gain}_{\text{FP16}} = \frac{\theta_{\text{FP16}}}{\theta_{\text{FP32}}}
-$$
+```
 
 (the same expression with BF16). A gain above 1 means the format is faster on that backend, below 1 that it is slower.
 
 **Why it matters.** Half precision is the standard way to speed up and shrink training, but it is only faster where the hardware and kernels support it. The result
 differs sharply per backend (see the [detailed results](#detailed-results)), so it should be measured, not assumed.
 
-</details>
-
-<details>
-<summary><b>Reinforcement learning (PPO / CartPole): three rates</b></summary>
+### Reinforcement learning (PPO / CartPole): three rates
 
 **What.** One PPO iteration collects $N = E \cdot T_r$ environment steps ($E$ parallel environments $\times$ $T_r$ steps each; 8 × 128 = 1024 by default) and then updates the policy.
 
 **How.** The iteration time is split into four synchronised parts, and three rates are derived from them:
 
-$$
+```math
 T_\text{iter} = T_\text{env} + T_\text{infer} + T_\text{gae} + T_\text{update}
-$$
+```
 
-$$
+```math
 \theta_\text{end-to-end} = \frac{N}{T_\text{iter}}, \qquad \theta_\text{env-only} = \frac{N}{T_\text{env}}, \qquad \theta_\text{grad} = \frac{G}{T_\text{update}}
-$$
+```
 
 where $G$ is the number of minibatch gradient steps in the update. $T_\text{env}$ is the simulator (always on the CPU), $T_\text{infer}$ the policy forward pass
 including the host↔device round trip, $T_\text{gae}$ advantage estimation, and $T_\text{update}$ the gradient updates on the device.
@@ -426,24 +402,21 @@ including the host↔device round trip, $T_\text{gae}$ advantage estimation, and
 ceiling that the simulator imposes; **gradient steps/s** isolates the neural-network training speed. Together they explain *why* a GPU does or does not help:
 with a tiny policy the per-step CPU↔device round trip and the CPU-bound simulator dominate, so the accelerator barely matters.
 
-</details>
-
-<details>
-<summary><b>Sustained training: window throughput and degradation</b></summary>
+### Sustained training: window throughput and degradation
 
 **What.** The transformer step repeated for a fixed duration (default 30 min), summarised in fixed time windows.
 
 **How.** For a window $w$ of length $\Delta t_w$ containing $k_w$ steps, and a run of total length $T$:
 
-$$
+```math
 \theta_w = \frac{k_w \cdot B \cdot L}{\Delta t_w}, \qquad \bar{\theta} = \frac{\sum_w k_w \cdot B \cdot L}{T} = \frac{\text{total tokens}}{T}
-$$
+```
 
 Degradation compares the median window throughput of the first and last 10% of windows (at least one window each):
 
-$$
+```math
 D = 100\cdot\frac{\tilde{\theta}_\text{first} - \tilde{\theta}_\text{last}}{\tilde{\theta}_\text{first}}\ \ [\text{percent}]
-$$
+```
 
 Positive $D$ means the run was slower at the end; negative means it sped up slightly. *Example:* $D = +4.10$ % for the RTX 3060 and $D = -0.18$ % for the M1 Pro
 in the [detailed results](#detailed-results). GPU utilisation, temperature and power are read where accessible (NVML / `nvidia-smi` on CUDA; not collected on Apple Silicon
@@ -452,18 +425,15 @@ without `sudo powermetrics`).
 **Why it matters.** Short benchmarks run on a cool, boosted device. Real training runs for hours, and sustained clocks are lower once the chip heats up or a laptop
 throttles. $D$ quantifies that gap, which matters most for thin, fanless or laptop hardware.
 
-</details>
-
-<details>
-<summary><b>Speedup</b></summary>
+### Speedup
 
 **What.** Throughput of one series relative to a chosen *baseline* series for the identical configuration (`compare_runs.py`, per-run report).
 
 **How.**
 
-$$
+```math
 S = \frac{\tilde{\theta}_\text{series}}{\tilde{\theta}_\text{baseline}} = \frac{\tilde{t}_\text{baseline}}{\tilde{t}_\text{series}}
-$$
+```
 
 the ratio of the two medians, computed per row of the table (per matrix size, batch size, …). $S > 1$ means higher throughput than the baseline, $S < 1$ lower,
 and $S = 1$ equal. The baseline is the first series by default; pass `--baseline "cpu · Apple M1 Pro"` for the usual "×faster than CPU" numbers.
@@ -473,10 +443,7 @@ and $S = 1$ equal. The baseline is the first series by default; pass `--baseline
 series ran the *same* code, seed and settings, which is why `compare_runs.py` prints a comparability warning when `code_sha256`, the seed or an experiment's configuration
 differ. There is deliberately no aggregate score: an average of speedups across unrelated workloads would hide exactly the per-workload differences this suite exists to show.
 
-</details>
-
-<details>
-<summary><b>Memory and the largest successful configuration</b></summary>
+### Memory and the largest successful configuration
 
 **What.** `memory_mb` is the memory a backend reports for a workload. The *largest successful configuration* is the last `ok` rung of a memory ladder
 (batch size, sequence length or model size) before the ladder fails or reaches its ceiling.
@@ -487,8 +454,6 @@ ceiling with no failure.
 
 **Why it matters.** Memory decides *how large* a model or batch you can train at all, independent of how fast it runs. Because the counters measure different things,
 **absolute memory values must not be compared across backends**; see [Memory metrics are NOT equivalent](#memory-metrics-are-not-equivalent) below.
-
-</details>
 
 ## Memory metrics are NOT equivalent
 
