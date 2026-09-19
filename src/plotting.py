@@ -368,7 +368,7 @@ def plot_precision(df: pd.DataFrame, out_dir: Path) -> list[Path]:
     fail = fail.assign(workload=xcol(fail, "workload"))
     order = ["fp32", "fp16", "bf16"]
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
-    for ax, (wl, label) in zip(axes, [("matmul_pure_dtype", "Matmul 4096×4096, pure dtype (GFLOPS)"), ("training_autocast", "GPT training step, autocast (tokens / second)")]):
+    for ax, (wl, label) in zip(axes, [("matmul_pure_dtype", "Matmul 2048×2048, pure dtype (GFLOPS)"), ("training_autocast", "GPT training step, autocast (tokens / second)")]):
         g = d[d["workload"] == wl]
         samples, _ = _samples(g, "backend", "precision", "throughput")
         f = fail[fail["workload"] == wl]

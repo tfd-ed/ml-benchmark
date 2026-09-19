@@ -131,7 +131,7 @@ error, extra, metadata`
 | 2 | `cnn` | ResNet-18 (CIFAR variant) on a seeded CIFAR-10 subset, batch sizes 16–128: epoch time, images/s, train loss, val accuracy, memory |
 | 3 | `transformer` | 4.2M-parameter GPT-style model, batch × sequence-length grid: step time, tokens/s, loss, memory |
 | 4 | `memory` | Batch / sequence-length / model-size ladders until failure; each config in a fresh subprocess |
-| 5 | `precision` | FP32 / FP16 / BF16: pure-dtype matmul and autocast training: throughput, step time, loss, memory |
+| 5 | `precision` | FP32 / FP16 / BF16: pure-dtype 2048² matmul and autocast training: throughput, step time, loss, memory |
 | 6 | `rl` | PPO on CartPole, two policy widths: env steps/s, gradient steps/s, total runtime, losses, time split env / inference / update |
 | 7 | `sustained` | Repeated training for `duration_minutes` (default 30): throughput over time, degradation, telemetry where accessible |
 
