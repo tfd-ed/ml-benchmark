@@ -269,7 +269,9 @@ Click a metric to expand it.
 
 **How.** Every measurement is synchronised on both sides, so queued asynchronous GPU work is fully counted and cannot leak into the next iteration:
 
-$$t = t_1 - t_0, \qquad \text{sync} \rightarrow t_0 \rightarrow \text{work} \rightarrow \text{sync} \rightarrow t_1$$
+$$
+t = t_1 - t_0, \qquad \text{sync} \rightarrow t_0 \rightarrow \text{work} \rightarrow \text{sync} \rightarrow t_1
+$$
 
 using `torch.cuda.synchronize()`, `torch.mps.synchronize()` (nothing on CPU) and `time.perf_counter()` on every backend. Warm-up iterations are recorded
 (`phase = warmup`) but excluded from all statistics.
@@ -288,7 +290,9 @@ values is summarised, and the **median** is the headline number.
 
 **How.** With measurements $x_1,\dots,x_n$:
 
-$$\bar{x} = \frac{1}{n}\sum_{i=1}^{n} x_i, \qquad s = \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}\left(x_i-\bar{x}\right)^2}, \qquad \mathrm{CV} = \frac{s}{\bar{x}}$$
+$$
+\bar{x} = \frac{1}{n}\sum_{i=1}^{n} x_i, \qquad s = \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}\left(x_i-\bar{x}\right)^2}, \qquad \mathrm{CV} = \frac{s}{\bar{x}}
+$$
 
 $\tilde{x}$ (the median) is the middle value of the sorted measurements; $s$ is the *sample* standard deviation and is undefined (`null`) for $n < 2$.
 
@@ -305,7 +309,9 @@ batch 32 × sequence 128) flags a configuration whose number should not be over-
 
 **How.** In general
 
-$$\theta = \frac{W}{t}$$
+$$
+\theta = \frac{W}{t}
+$$
 
 where $W$ is the amount of work in one measured call. The concrete $W$ and unit for each experiment are given below. Because $\theta = W/t$ is a decreasing
 function of $t$, the median throughput equals the work divided by the median latency.
@@ -322,7 +328,9 @@ it is the quantity that the speedup below is built from. Only compare throughput
 
 **How.** Each of the $n^2$ output entries is a dot product of length $n$, costing $n$ multiplications and $n-1$ additions, so
 
-$$\text{FLOPs}(n) \approx 2n^3, \qquad \text{GFLOPS} = \frac{2n^3}{t \cdot 10^{9}}, \qquad \text{matmuls/s} = \frac{1}{t}$$
+$$
+\text{FLOPs}(n) \approx 2n^3, \qquad \text{GFLOPS} = \frac{2n^3}{t \cdot 10^{9}}, \qquad \text{matmuls/s} = \frac{1}{t}
+$$
 
 *Example:* $n = 4096$ in $t = 18.074\ \text{ms}$ gives $\dfrac{2\cdot 4096^3}{0.018074\cdot 10^{9}} \approx 7{,}604$ GFLOPS (the `cuda · NVIDIA GeForce RTX 3060` row).
 
@@ -339,13 +347,17 @@ cannot fill a large GPU, which is why GFLOPS grows with $n$. The pure-dtype matm
 
 **How.** With $S$ steps per epoch and per-step synchronised times $t_1,\dots,t_S$:
 
-$$T_\text{epoch} = \sum_{s=1}^{S} t_s, \qquad \theta_\text{img} = \frac{S \cdot B}{T_\text{epoch}}\ \ [\text{images/s}]$$
+$$
+T_\text{epoch} = \sum_{s=1}^{S} t_s, \qquad \theta_\text{img} = \frac{S \cdot B}{T_\text{epoch}}\ \ [\text{images/s}]
+$$
 
 *Example:* batch 128 on the M1 Pro has $S \cdot B = 4096$ images and $T_\text{epoch} = 5.488$ s, so $\theta_\text{img} = 4096/5.488 \approx 746$ images/s.
 Each step includes the host→device copy of the batch, forward, backward, optimiser update and `loss.item()`. Data augmentation and validation are timed
 separately and are *not* part of $T_\text{epoch}$. The reported **training loss** is the mean cross-entropy over the epoch's steps, and **validation accuracy** is
 
-$$\text{acc} = \frac{N_\text{correct}}{N_\text{val}}, \qquad N_\text{val} = 1000$$
+$$
+\text{acc} = \frac{N_\text{correct}}{N_\text{val}}, \qquad N_\text{val} = 1000
+$$
 
 **Why it matters.** Images/s (and its inverse, epoch time) is what determines how long a real training run takes. Batch size changes it because larger batches keep
 the device busier. Loss and accuracy are only a sanity check that the run actually trained and the numerics are sane, not a model-quality result (3 epochs on a
@@ -360,7 +372,9 @@ the device busier. Loss and accuracy are only a sanity check that the run actual
 
 **How.**
 
-$$\theta_\text{tok} = \frac{B \cdot L}{t_\text{step}}\ \ [\text{tokens/s}]$$
+$$
+\theta_\text{tok} = \frac{B \cdot L}{t_\text{step}}\ \ [\text{tokens/s}]
+$$
 
 The `precision` experiment's `training_autocast` workload and the `sustained` experiment use the same definition. Loss is next-token cross-entropy; the synthetic data
 has a known entropy floor $\ln(\text{branching})$ that the loss cannot go below, which makes divergence or a broken run visible.
@@ -377,7 +391,9 @@ It depends on both $B$ and $L$ (longer sequences cost more per token because att
 
 **How.** Formulas as above; FP32 is *strict* FP32 (TF32 disabled), so the half-precision gain is measured against a true FP32 baseline:
 
-$$\text{gain}_{\text{FP16}} = \frac{\theta_{\text{FP16}}}{\theta_{\text{FP32}}}$$
+$$
+\text{gain}_{\text{FP16}} = \frac{\theta_{\text{FP16}}}{\theta_{\text{FP32}}}
+$$
 
 (the same expression with BF16). A gain above 1 means the format is faster on that backend, below 1 that it is slower.
 
@@ -393,9 +409,13 @@ differs sharply per backend (see the [detailed results](#detailed-results)), so 
 
 **How.** The iteration time is split into four synchronised parts, and three rates are derived from them:
 
-$$T_\text{iter} = T_\text{env} + T_\text{infer} + T_\text{gae} + T_\text{update}$$
+$$
+T_\text{iter} = T_\text{env} + T_\text{infer} + T_\text{gae} + T_\text{update}
+$$
 
-$$\theta_\text{end-to-end} = \frac{N}{T_\text{iter}}, \qquad \theta_\text{env-only} = \frac{N}{T_\text{env}}, \qquad \theta_\text{grad} = \frac{G}{T_\text{update}}$$
+$$
+\theta_\text{end-to-end} = \frac{N}{T_\text{iter}}, \qquad \theta_\text{env-only} = \frac{N}{T_\text{env}}, \qquad \theta_\text{grad} = \frac{G}{T_\text{update}}
+$$
 
 where $G$ is the number of minibatch gradient steps in the update. $T_\text{env}$ is the simulator (always on the CPU), $T_\text{infer}$ the policy forward pass
 including the host↔device round trip, $T_\text{gae}$ advantage estimation, and $T_\text{update}$ the gradient updates on the device.
@@ -415,11 +435,15 @@ with a tiny policy the per-step CPU↔device round trip and the CPU-bound simula
 
 **How.** For a window $w$ of length $\Delta t_w$ containing $k_w$ steps, and a run of total length $T$:
 
-$$\theta_w = \frac{k_w \cdot B \cdot L}{\Delta t_w}, \qquad \bar{\theta} = \frac{\sum_w k_w \cdot B \cdot L}{T} = \frac{\text{total tokens}}{T}$$
+$$
+\theta_w = \frac{k_w \cdot B \cdot L}{\Delta t_w}, \qquad \bar{\theta} = \frac{\sum_w k_w \cdot B \cdot L}{T} = \frac{\text{total tokens}}{T}
+$$
 
 Degradation compares the median window throughput of the first and last 10% of windows (at least one window each):
 
-$$D = 100\cdot\frac{\tilde{\theta}_\text{first} - \tilde{\theta}_\text{last}}{\tilde{\theta}_\text{first}}\ \ [\text{percent}]$$
+$$
+D = 100\cdot\frac{\tilde{\theta}_\text{first} - \tilde{\theta}_\text{last}}{\tilde{\theta}_\text{first}}\ \ [\text{percent}]
+$$
 
 Positive $D$ means the run was slower at the end; negative means it sped up slightly. *Example:* $D = +4.10$ % for the RTX 3060 and $D = -0.18$ % for the M1 Pro
 in the [detailed results](#detailed-results). GPU utilisation, temperature and power are read where accessible (NVML / `nvidia-smi` on CUDA; not collected on Apple Silicon
@@ -437,7 +461,9 @@ throttles. $D$ quantifies that gap, which matters most for thin, fanless or lapt
 
 **How.**
 
-$$S = \frac{\tilde{\theta}_\text{series}}{\tilde{\theta}_\text{baseline}} = \frac{\tilde{t}_\text{baseline}}{\tilde{t}_\text{series}}$$
+$$
+S = \frac{\tilde{\theta}_\text{series}}{\tilde{\theta}_\text{baseline}} = \frac{\tilde{t}_\text{baseline}}{\tilde{t}_\text{series}}
+$$
 
 the ratio of the two medians, computed per row of the table (per matrix size, batch size, …). $S > 1$ means higher throughput than the baseline, $S < 1$ lower,
 and $S = 1$ equal. The baseline is the first series by default; pass `--baseline "cpu · Apple M1 Pro"` for the usual "×faster than CPU" numbers.
