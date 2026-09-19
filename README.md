@@ -12,11 +12,11 @@ factually and leaves interpretation to you. It never computes an overall "winner
 * OOM, unsupported dtypes/operators and other errors are stored as data (`status`, `error_type`, `error`); the run continues.
 * Every individual measurement, warmup included, is saved. Statistics are computed afterwards from the raw rows.
 
-> **Status of this checkout.** Everything here was developed and run on one machine: a MacBook Pro with an
-> **Apple M1 Pro, 32 GB unified memory** (CPU + MPS). The CUDA path has since been run on an **NVIDIA GeForce
-> RTX 3060** (Linux, PyTorch 2.14+cu130); see [Example results](#example-results). Every machine's numbers come from its own
-> run, so check the report in `results/latest/report.md` for what was actually measured, and use
-> `scripts/compare_runs.py` to put several machines side by side.
+> **Status of this checkout.** Everything here was developed on a MacBook Pro with an **Apple M1 Pro, 32 GB unified
+> memory**. The suite has since been run on that Mac (`mps`) and on a Linux machine with an **NVIDIA GeForce RTX 3060**
+> (`cuda`, PyTorch 2.14+cu130); the two are compared in [Example results](#example-results). Every machine's numbers come
+> from its own run, so check that run's `report.md` for what was actually measured, and use
+> `scripts/compare_runs.py` to put several machines side by side. No `cpu` series has been recorded yet.
 
 ## Setup
 
@@ -170,64 +170,103 @@ error, extra, metadata`
 ## Example results
 
 Backends are always labelled by what they are: **`cuda`** = NVIDIA GPU (CUDA), **`mps`** = Apple GPU (Metal), **`cpu`** = host CPU, followed by the device
-name. The numbers below are the single series **`cuda · NVIDIA GeForce RTX 3060`** (Intel Core i7-8700K host, 62.7 GB RAM, Linux, PyTorch 2.14.0+cu130,
-FP32 without TF32, seed 1234, run `20260919T163805`). No `cpu` or `mps` series was measured in this run, so there are no speedup columns; add
-those runs with `compare_runs.py`. Full tables, CV/std and all plots are in that run's `report.md`.
+name. The numbers below compare two series measured on two machines (FP32 without TF32, seed 1234):
 
-**Matrix multiplication** (FP32; latency per `A @ B`, GFLOPS = 2n³ / latency)
+| series | run | host | RAM | software |
+|---|---|---|---|---|
+| `cuda · NVIDIA GeForce RTX 3060` | `20260919T163805` | Intel Core i7-8700K, Linux 6.8 | 62.7 GB | PyTorch 2.14.0+cu130, Python 3.12.5 |
+| `mps · Apple M1 Pro (16-core GPU)` | `20260919T172639` | MacBook Pro, macOS (Darwin 25.6.0) | 32 GB unified | PyTorch 2.14.0, Python 3.12.5 |
 
-| series | n | latency (ms, median) | GFLOPS |
+No `cpu` series was measured in these runs, so speedup is expressed against the **CUDA** series (baseline), not against a CPU: **>1 = higher throughput than the
+RTX 3060**, <1 = lower. Full tables, CV/std and all plots are in each run's `report.md` and in `results/comparison/comparison.md`.
+
+> **Comparability caveat.** `compare_runs.py` reports that the two runs are **not strictly comparable**: `code_sha256` differs between them
+> (the benchmark sources were not identical on the two machines; for `sustained` the Mac run also differs from the Mac's other experiments).
+> Seeds and experiment settings matched. Treat the numbers as indicative, and re-run both machines from one checkout to get a like-for-like comparison.
+> Memory numbers are backend-specific (see [Memory metrics are NOT equivalent](#memory-metrics-are-not-equivalent)) and are not compared as speedups.
+
+**Matrix multiplication** (FP32; median GFLOPS = 2n³ / latency)
+
+| n | cuda · RTX 3060 (GFLOPS) | mps · M1 Pro (GFLOPS) | speedup (mps vs cuda) |
 |---|---|---|---|
-| cuda · NVIDIA GeForce RTX 3060 | 1024 | 0.315 | 6,812 |
-| cuda · NVIDIA GeForce RTX 3060 | 2048 | 2.286 | 7,516 |
-| cuda · NVIDIA GeForce RTX 3060 | 4096 | 18.074 | 7,604 |
-| cuda · NVIDIA GeForce RTX 3060 | 8192 | 116.543 | 9,435 |
+| 1024 | 6,812 | 2,823 | 0.41 |
+| 2048 | 7,516 | 4,040 | 0.54 |
+| 4096 | 7,604 | 4,055 | 0.53 |
+| 8192 | 9,435 | 4,059 | 0.43 |
 
 ![Matmul throughput](docs/example-results/01_matmul_throughput_vs_size.png)
 
-**CNN training** (ResNet-18, Fashion-MNIST subset of 4,096 images, 3 epochs; epoch time = summed step time)
+**CNN training** (ResNet-18, Fashion-MNIST subset of 4,096 images, 3 epochs; median images/s per epoch)
 
-| series | batch size | epoch time (s) | images/s | final val. accuracy |
-|---|---|---|---|---|
-| cuda · NVIDIA GeForce RTX 3060 | 16 | 4.270 | 959 | 0.725 |
-| cuda · NVIDIA GeForce RTX 3060 | 32 | 3.327 | 1,231 | 0.610 |
-| cuda · NVIDIA GeForce RTX 3060 | 64 | 2.790 | 1,468 | 0.740 |
-| cuda · NVIDIA GeForce RTX 3060 | 128 | 2.584 | 1,585 | 0.720 |
+| batch size | cuda · RTX 3060 (images/s) | mps · M1 Pro (images/s) | speedup (mps vs cuda) | mps epoch time (s) | mps final val. acc. |
+|---|---|---|---|---|---|
+| 16 | 959 | 553 | 0.58 | 7.41 | 0.751 |
+| 32 | 1,231 | 644 | 0.52 | 6.36 | 0.743 |
+| 64 | 1,468 | 732 | 0.50 | 5.60 | 0.776 |
+| 128 | 1,585 | 746 | 0.47 | 5.49 | 0.711 |
 
-Validation accuracy uses a 1,000-image subset after 3 epochs, so it is a sanity check that training works, not a quality result.
+The CUDA epoch times were 4.27 / 3.33 / 2.79 / 2.58 s. Validation accuracy uses a 1,000-image subset after 3 epochs, so it is a sanity check that training works,
+not a quality result.
 
 ![CNN images per second](docs/example-results/02_cnn_images_per_sec.png)
 
-**Transformer training** (4.2M-parameter GPT-style model; tokens/s, median)
+**Transformer training** (4.2M-parameter GPT-style model; median tokens/s)
 
-| series | batch \ sequence length | 128 | 256 | 512 |
-|---|---|---|---|---|
-| cuda · NVIDIA GeForce RTX 3060 | 8 | 121,354 | 134,980 | 141,402 |
-| cuda · NVIDIA GeForce RTX 3060 | 16 | 143,655 | 149,717 | 138,309 |
-| cuda · NVIDIA GeForce RTX 3060 | 32 | 164,162 | 154,633 | 143,958 |
+| batch \ sequence length | cuda 128 | cuda 256 | cuda 512 | mps 128 | mps 256 | mps 512 |
+|---|---|---|---|---|---|---|
+| 8 | 121,354 | 134,980 | 141,402 | 49,906 | 55,274 | 53,104 |
+| 16 | 143,655 | 149,717 | 138,309 | 58,766 | 60,055 | 54,816 |
+| 32 | 164,162 | 154,633 | 143,958 | 64,495 | 62,536 | 54,504 |
+
+Across the nine configurations the M1 Pro reaches 0.38–0.41× the RTX 3060's tokens/s.
 
 ![Transformer tokens per second](docs/example-results/04_transformer_tokens_per_sec.png)
 
-**Precision** (median throughput)
+**Precision** (median throughput; speedup = mps vs cuda)
 
-| series | matmul 4096×4096 (GFLOPS) | GPT training step, autocast (tokens/s) |
-|---|---|---|
-| cuda · NVIDIA GeForce RTX 3060, FP32 | 7,599 | 158,684 |
-| cuda · NVIDIA GeForce RTX 3060, FP16 | 23,998 | 283,008 |
-| cuda · NVIDIA GeForce RTX 3060, BF16 | 23,941 | 291,882 |
+| workload | precision | cuda · RTX 3060 | mps · M1 Pro | speedup |
+|---|---|---|---|---|
+| matmul 4096×4096 (GFLOPS) | FP32 | 7,599 | 4,012 | 0.53 |
+| matmul 4096×4096 (GFLOPS) | FP16 | 23,998 | 4,653 | 0.19 |
+| matmul 4096×4096 (GFLOPS) | BF16 | 23,941 | 2,229 | 0.09 |
+| GPT training step, autocast (tokens/s) | FP32 | 158,684 | 60,143 | 0.38 |
+| GPT training step, autocast (tokens/s) | FP16 | 283,008 | 47,914 | 0.17 |
+| GPT training step, autocast (tokens/s) | BF16 | 291,882 | 43,091 | 0.15 |
+
+On the RTX 3060 half precision is faster than strict FP32 (about 3× for matmul, 1.8× for training). On the M1 Pro through MPS FP16/BF16 training is *slower* than FP32,
+and BF16 matmul is slower than FP16 and FP32.
 
 ![Precision](docs/example-results/08_precision_fp32_fp16_bf16.png)
 
-**Memory scaling** (peak allocated CUDA memory, dedicated VRAM 11.6 GiB): batch size up to 256 fits (8,394 MB), 512 runs out of memory;
-the sequence-length ladder reaches its ceiling of 4,096 tokens and the model ladder its ceiling of 206M parameters without failing.
+**Memory scaling** (largest configuration that ran; the two `memory_mb` values are different metrics and not comparable)
 
-**PPO / CartPole** (8 envs × 128 steps per iteration): end-to-end 9,448 env-steps/s (hidden width 64) and 9,107 (width 512);
-gradient-step throughput 341 and 332 steps/s.
+| ladder | cuda · RTX 3060 | mps · M1 Pro |
+|---|---|---|
+| batch size | up to 256 (8,394 MB); 512 out of memory (`OutOfMemoryError`) | up to 256 (11,561 MB); 512 stopped by the suite's system-memory safety cap (`SafetyCapSystemMemory`), not a native OOM |
+| model size | ceiling reached: 206M parameters (4,568 MB) | ceiling reached: 206M parameters (6,267 MB) |
+| sequence length | ceiling reached: 4,096 tokens (4,241 MB) | ceiling reached: 4,096 tokens (17,539 MB) |
+
+CUDA memory is peak allocated tensor memory in dedicated VRAM (11.6 GiB); MPS memory is what the Metal driver holds in unified memory shared with the CPU and OS
+(a sampled lower bound of the true peak).
+
+**PPO / CartPole** (8 envs × 128 steps per iteration; median end-to-end env-steps/s)
+
+| hidden width | cuda · RTX 3060 | mps · M1 Pro | speedup |
+|---|---|---|---|
+| 64 | 9,448 | 4,997 | 0.53 |
+| 512 | 9,107 | 4,478 | 0.49 |
+
+Gradient-step throughput: cuda 341 / 332 steps/s, mps 207 / 174 steps/s (width 64 / 512).
 
 ![PPO throughput](docs/example-results/09_ppo_throughput.png)
 
-**Sustained training** (10 min): average 139,755 tokens/s; first→last 10% of windows changed by 4.10% (positive = slower at the end);
-median GPU utilisation 98%, temperature 87 °C, power 121 W.
+**Sustained training** (10 min)
+
+| | cuda · RTX 3060 | mps · M1 Pro |
+|---|---|---|
+| average tokens/s | 139,755 | 59,359 |
+| first→last 10% of windows (positive = slower at the end) | +4.10% | −0.18% |
+| GPU telemetry | median utilisation 98%, 87 °C, 121 W | not collected (needs `sudo powermetrics`) |
 
 ![Sustained throughput](docs/example-results/10_sustained_throughput_over_time.png)
 
@@ -239,7 +278,7 @@ median GPU utilisation 98%, temperature 87 °C, power 121 W.
   which is why throughput changes with `n`.
 * **Batch size** changes throughput (images/s, tokens/s) because larger batches keep the device busier; epoch time is what the same amount of work costs in seconds.
 * **Precision.** Half precision is only faster if the hardware and kernels support it; FP32 here is strict FP32 (TF32 off), so FP16/BF16 gains are measured against that.
-* **Memory** is the backend's own metric (`cuda` = peak allocated tensor memory) and must not be compared against `mps` or `cpu` memory numbers.
+* **Memory** is the backend's own metric (`cuda` = peak allocated tensor memory; `mps` = driver-held memory) and must not be compared across backends, which is why the memory table above lists values but no speedup.
 * **Speedup** (in `compare_runs.py` output and the per-run report) is throughput relative to a baseline series; it is meaningful only when both series ran the
   identical configuration.
 
@@ -294,8 +333,9 @@ reported as `SafetyCap*` — *stopped by this suite*, not a native OOM.
 
 ## Limitations discovered while building this (Apple M1 Pro, 32 GB, PyTorch 2.14)
 
-* **One machine per run.** The numbers on this page come from a single RTX 3060 machine; `mps` results need an Apple-Silicon Mac and `cpu`
-  results depend on the host CPU, so combine machines with `scripts/compare_runs.py`. CUDA telemetry (GPU utilisation, temperature, power) is read
+* **One machine per run.** The example numbers come from an RTX 3060 machine (`cuda`) and an M1 Pro Mac (`mps`) whose sources were not byte-identical
+  (`code_sha256` differs, see the caveat under Example results); `cpu` results depend on the host CPU, so combine machines with `scripts/compare_runs.py`
+  and run each from the same checkout. CUDA telemetry (GPU utilisation, temperature, power) is read
   through `nvidia-smi` / NVML; the OS CPU speed limit is not collected on Linux.
 * **CPU matmul runs on Apple's AMX matrix units via Accelerate**, giving ~1.6 TFLOPS that is *independent of the thread count*
   (1 thread ≈ 10 threads). A pure-NEON CPU would be far slower, so "CPU" on Apple Silicon is unusually strong for large FP32 matmuls,

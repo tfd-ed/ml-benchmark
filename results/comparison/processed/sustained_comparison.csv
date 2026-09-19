@@ -1,0 +1,4 @@
+metric,cuda · NVIDIA GeForce RTX 3060,mps · Apple M1 Pro (16-core GPU)
+avg_tokens_per_s,139755.05146229744,59358.74308926224
+degradation_pct (positive = slower at the end),4.096159612851593,-0.18492497014694786
+duration_min,10.000521999333326,10.001002420833295

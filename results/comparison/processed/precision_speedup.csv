@@ -1,0 +1,7 @@
+workload,precision,mps · Apple M1 Pro (16-core GPU)
+matmul_pure_dtype,bf16,0.09308628771676927
+matmul_pure_dtype,fp16,0.19389096814697626
+matmul_pure_dtype,fp32,0.5279006107437239
+training_autocast,bf16,0.1476312656564963
+training_autocast,fp16,0.16930326128844422
+training_autocast,fp32,0.37901329291151137

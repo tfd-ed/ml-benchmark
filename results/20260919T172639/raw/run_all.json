@@ -1,0 +1,49 @@
+{
+  "run_id": "20260919T172639",
+  "backend_arg": "mps",
+  "overrides": [],
+  "runs": [
+    {
+      "experiment": "matmul",
+      "backend": "mps",
+      "returncode": 0,
+      "seconds": 9.9
+    },
+    {
+      "experiment": "cnn",
+      "backend": "mps",
+      "returncode": 0,
+      "seconds": 87.2
+    },
+    {
+      "experiment": "transformer",
+      "backend": "mps",
+      "returncode": 0,
+      "seconds": 25.4
+    },
+    {
+      "experiment": "memory",
+      "backend": "mps",
+      "returncode": 0,
+      "seconds": 82.1
+    },
+    {
+      "experiment": "precision",
+      "backend": "mps",
+      "returncode": 0,
+      "seconds": 10.1
+    },
+    {
+      "experiment": "rl",
+      "backend": "mps",
+      "returncode": 0,
+      "seconds": 17.6
+    },
+    {
+      "experiment": "sustained",
+      "backend": "mps",
+      "returncode": 0,
+      "seconds": 603.4
+    }
+  ]
+}

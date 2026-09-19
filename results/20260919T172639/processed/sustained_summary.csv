@@ -1,0 +1,2 @@
+backend,duration_min,windows,avg_tokens_per_s,median_window_tokens_per_s,first10pct_median,last10pct_median,degradation_pct,total_tokens,total_samples,final_loss,memory_mb
+mps,10.001002420833295,60,59358.74308926224,59476.29847284229,59310.8137532509,59420.49425787801,-0.18492497014694786,35618816.0,139136.0,0.0083720477104925,1218.71875

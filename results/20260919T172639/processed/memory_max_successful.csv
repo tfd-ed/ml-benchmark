@@ -1,0 +1,4 @@
+backend,ladder,largest_ok_value,largest_ok_model,largest_ok_batch,largest_ok_seq,largest_ok_params_M,memory_mb_at_largest_ok,memory_kind,ladder_ended_by,ended_by_safety_cap
+mps,batch_size,256.0,small,256.0,256.0,4.273664,11560.71875,"mps_driver_allocated_memory (sampled max, lower bound of peak; includes allocator cache)",oom (SafetyCapSystemMemory) at small bs=512 seq=256,True
+mps,model,205998080.0,xl,8.0,256.0,205.99808,6266.75,"mps_driver_allocated_memory (sampled max, lower bound of peak; includes allocator cache)",ladder ceiling reached (no failure),False
+mps,sequence_length,4096.0,small,8.0,4096.0,5.256704,17538.734375,"mps_driver_allocated_memory (sampled max, lower bound of peak; includes allocator cache)",ladder ceiling reached (no failure),False
