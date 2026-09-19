@@ -1,0 +1,23 @@
+[project]
+name = "ml-hardware-benchmark"
+version = "0.1.0"
+description = "Reproducible PyTorch benchmark suite comparing CPU, Apple MPS and NVIDIA CUDA"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.5",
+    "torchvision",
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "pyyaml",
+    "psutil",
+    "gymnasium",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+cuda-telemetry = ["nvidia-ml-py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

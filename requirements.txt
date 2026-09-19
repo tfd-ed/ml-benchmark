@@ -1,0 +1,11 @@
+torch>=2.5
+torchvision
+numpy
+pandas
+matplotlib
+pyyaml
+psutil
+gymnasium
+pytest
+# Optional, CUDA telemetry only (GPU utilisation / temperature / power):
+# nvidia-ml-py
