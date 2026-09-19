@@ -1,7 +1,7 @@
 {
   "run_id": "20260919_full",
   "experiment": "precision",
-  "timestamp": "2026-09-19T15:29:22+07:00",
+  "timestamp": "2026-09-19T15:51:11+07:00",
   "hostname": "Kims-MacBook-Pro-16.local",
   "os": "Darwin 25.6.0",
   "os_version": "macOS-26.6.2-arm64-arm-64bit",
@@ -32,10 +32,10 @@
   "cuda_allow_tf32_matmul": false,
   "cudnn_allow_tf32": true,
   "seed": 1234,
-  "code_sha256": "6901b6359c57afc9",
-  "git_commit": null,
-  "git_dirty": null,
-  "git_note": "not a git repository (or git unavailable)",
+  "code_sha256": "0176831a9269ba58",
+  "git_commit": "fd532446b10740da6a025ff593b3b290f44a5141",
+  "git_dirty": true,
+  "git_note": null,
   "power_source": "AC Power",
   "battery_percent": "100%",
   "low_power_mode": false,
@@ -194,13 +194,15 @@
       "matmul": {
         "size": 4096,
         "warmup": 3,
-        "iterations": 15
+        "iterations": 15,
+        "time_budget_s": 60
       },
       "transformer": {
         "batch_size": 16,
         "sequence_length": 256,
         "warmup_steps": 2,
-        "steps": 10
+        "steps": 10,
+        "time_budget_s": 120
       }
     },
     "rl": {

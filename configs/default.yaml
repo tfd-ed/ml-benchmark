@@ -67,8 +67,10 @@ memory:
 
 precision:
   precisions: [fp32, fp16, bf16]
-  matmul: {size: 4096, warmup: 3, iterations: 15}
-  transformer: {batch_size: 16, sequence_length: 256, warmup_steps: 2, steps: 10}
+  # time_budget_s: if the first call shows a configuration would take longer than this, warmup is cut to 1 and
+  # iterations to >= 3 (flagged as reduced_for_time_budget). Needed because CPU half precision is ~600x slower than FP32.
+  matmul: {size: 4096, warmup: 3, iterations: 15, time_budget_s: 60}
+  transformer: {batch_size: 16, sequence_length: 256, warmup_steps: 2, steps: 10, time_budget_s: 120}
 
 rl:
   env: CartPole-v1

@@ -27,7 +27,7 @@ def make_inputs(n: int, dtype: torch.dtype, seed: int):
 
 
 def run_size(ctx: RunContext, n: int, dtype: torch.dtype, dtype_name: str, warmup: int, iterations: int,
-             verify: bool, sample_memory: bool = False, extra: dict | None = None) -> None:
+             verify: bool, sample_memory: bool = False, extra: dict | None = None, budget_s: float | None = None) -> None:
     flops = 2.0 * n**3
     a32, b32 = make_inputs(n, dtype, ctx.seed)
     a = a32.to(dtype).to(ctx.device)
@@ -44,7 +44,7 @@ def run_size(ctx: RunContext, n: int, dtype: torch.dtype, dtype_name: str, warmu
 
     rows: list[tuple[str, int, float]] = []
     with MemoryTracker(ctx.backend, sample=sample_memory) as mem:
-        res = time_fn(lambda: a @ b, ctx.backend, warmup, iterations, on_sample=lambda p, i, ms: rows.append((p, i, ms)))
+        res = time_fn(lambda: a @ b, ctx.backend, warmup, iterations, on_sample=lambda p, i, ms: rows.append((p, i, ms)), budget_s=budget_s)
     assert_on_device(ctx.device, a, b)
 
     for phase, i, ms in rows:
@@ -54,7 +54,7 @@ def run_size(ctx: RunContext, n: int, dtype: torch.dtype, dtype_name: str, warmu
             throughput=flops / (ms / 1000.0) / 1e9, throughput_unit="GFLOPS",
             memory_mb=mem.result["memory_mb"], memory_kind=mem.result["memory_kind"],
             matrix_size=n, matmuls_per_sec=1000.0 / ms, flops_per_matmul=flops,
-            rel_err_vs_cpu_fp32=rel_err, **(extra or {}),
+            rel_err_vs_cpu_fp32=rel_err, reduced_for_time_budget=res.reduced_for_budget, **(extra or {}),
         )
     s = res.stats()
     print(f"    n={n:5d} {dtype_name}: median {s['median']:.3f} ms  ({flops / (s['median'] / 1000) / 1e9:,.0f} GFLOPS)  "

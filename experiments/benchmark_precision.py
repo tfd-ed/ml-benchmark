@@ -44,10 +44,11 @@ def run_training(ctx: RunContext, precision: str) -> None:
         check_finite(last[-1], f"(step {counter['i']})")
 
     with MemoryTracker(ctx.backend) as mem:
-        res = time_fn(one_step, ctx.backend, tcfg["warmup_steps"], tcfg["steps"],
+        res = time_fn(one_step, ctx.backend, tcfg["warmup_steps"], tcfg["steps"], budget_s=tcfg.get("time_budget_s"),
                       on_sample=lambda ph, i, ms: ctx.record(**common, phase=ph, iteration=i, latency_ms=ms, throughput=tokens / (ms / 1000.0),
                                                              throughput_unit="tokens/s", loss=last[-1], step_ms=ms,
                                                              memory_mb=None))
+    common["reduced_for_time_budget"] = res.reduced_for_budget
     ctx.record(**common, phase="config", memory_mb=mem.result["memory_mb"], memory_kind=mem.result["memory_kind"],
                **{k: v for k, v in mem.result.items() if k not in ("memory_mb", "memory_kind")})
     s = res.stats()
@@ -60,7 +61,7 @@ def run(ctx: RunContext) -> None:
     for precision in cfg["precisions"]:
         try:
             run_size(ctx, m["size"], TORCH_DTYPES[precision], precision, m["warmup"], m["iterations"], verify=False,
-                     extra={"workload": "matmul_pure_dtype"})
+                     extra={"workload": "matmul_pure_dtype"}, budget_s=m.get("time_budget_s"))
         except Exception as exc:
             ctx.record_failure(exc, model="matmul", precision=precision, matrix_size=m["size"], workload="matmul_pure_dtype")
         ctx.cleanup()

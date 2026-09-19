@@ -158,3 +158,15 @@ def test_matmul_end_to_end_on_cpu(tmp_path):
     if not torch.cuda.is_available():
         un = df[df["backend"] == "cuda"]
         assert list(un["status"]) == ["unavailable"] and un["error"].notna().all()
+
+
+def test_time_budget_reduces_slow_configurations_and_flags_it():
+    import time
+
+    seen = []
+    slow = time_fn(lambda: time.sleep(0.05), "cpu", warmup=5, iterations=50, budget_s=0.5, on_sample=lambda p, i, ms: seen.append(p))
+    assert slow.reduced_for_budget and len(slow.warmup_ms) == 1 and 3 <= len(slow.samples_ms) < 50
+    fast = time_fn(lambda: None, "cpu", warmup=5, iterations=50, budget_s=5.0)
+    assert not fast.reduced_for_budget and len(fast.warmup_ms) == 5 and len(fast.samples_ms) == 50
+    unbudgeted = time_fn(lambda: time.sleep(0.01), "cpu", warmup=2, iterations=4)
+    assert not unbudgeted.reduced_for_budget and len(unbudgeted.samples_ms) == 4

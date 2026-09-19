@@ -24,6 +24,7 @@ from .metrics import summarize
 class TimingResult:
     warmup_ms: list[float] = field(default_factory=list)
     samples_ms: list[float] = field(default_factory=list)
+    reduced_for_budget: bool = False  # True if warmup/iterations were cut because the workload is very slow
 
     def stats(self) -> dict[str, float | None]:
         return summarize(self.samples_ms)
@@ -52,15 +53,35 @@ def time_fn(
     warmup: int,
     iterations: int,
     on_sample: Callable[[str, int, float], None] | None = None,
+    budget_s: float | None = None,
+    min_iterations: int = 3,
 ) -> TimingResult:
     """Run `fn` warmup + iterations times. `on_sample(phase, index, latency_ms)` streams every
-    individual measurement (phase is 'warmup' or 'measure') so callers can persist raw data."""
+    individual measurement (phase is 'warmup' or 'measure') so callers can persist raw data.
+
+    `budget_s` (optional) protects against pathologically slow configurations: if the FIRST call
+    shows that warmup + iterations would exceed the budget, warmup is cut to 1 and the number of
+    measured iterations to max(min_iterations, what fits), never more than requested. The result
+    is flagged with `reduced_for_budget` so the reduction is never hidden."""
     result = TimingResult()
-    for phase, count, sink in (("warmup", warmup, result.warmup_ms), ("measure", iterations, result.samples_ms)):
-        for i in range(count):
-            with DeviceTimer(backend) as t:
-                fn()
-            sink.append(t.elapsed_ms)
-            if on_sample is not None:
-                on_sample(phase, i, t.elapsed_ms)
+    planned_warmup, planned_iters = warmup, iterations
+    i = 0
+    while i < planned_warmup:
+        with DeviceTimer(backend) as t:
+            fn()
+        result.warmup_ms.append(t.elapsed_ms)
+        if on_sample is not None:
+            on_sample("warmup", i, t.elapsed_ms)
+        if i == 0 and budget_s and t.elapsed_ms / 1000 * (planned_warmup + planned_iters) > budget_s:
+            fits = int(budget_s / (t.elapsed_ms / 1000)) - 1
+            planned_warmup = 1
+            planned_iters = min(iterations, max(min_iterations, fits))
+            result.reduced_for_budget = True
+        i += 1
+    for i in range(planned_iters):
+        with DeviceTimer(backend) as t:
+            fn()
+        result.samples_ms.append(t.elapsed_ms)
+        if on_sample is not None:
+            on_sample("measure", i, t.elapsed_ms)
     return result
